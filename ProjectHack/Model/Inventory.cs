@@ -13,18 +13,18 @@
                 while (queue.Count > 0)
                 {
                     ProductSale currentSale = queue.Peek();
-                    if (stock[currentSale.Product] >= currentSale.Quantity)
+                    if (stock[currentSale.BarCode] >= currentSale.Quantity)
                     {
-                        stock[currentSale.Product] -= currentSale.Quantity;
+                        stock[currentSale.BarCode] -= currentSale.Quantity;
                         cost += currentSale.Quantity * currentSale.Price;
                         profit += currentSale.Quantity * (sale.Price - currentSale.Price);
                         queue.Dequeue();
                     }
                     else
                     {
-                        currentSale.Quantity -= stock[currentSale.Product];
-                        cost += stock[currentSale.Product] * currentSale.Price;
-                        stock[currentSale.Product] = 0;
+                        currentSale.Quantity -= stock[currentSale.BarCode];
+                        cost += stock[currentSale.BarCode] * currentSale.Price;
+                        stock[currentSale.BarCode] = 0;
                         queue.Enqueue(currentSale);
                     }
                 }
