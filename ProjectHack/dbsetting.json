@@ -1,0 +1,5 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Server=ALIM\\MSSQLSERVER32;Database=HackNu;Trusted_Connection=True;MultipleActiveResultSets=true"
+  }
+}
