@@ -1,6 +1,6 @@
 ﻿namespace ProjectHack.Model
 {
-    public class ProductSale
+    public class Supply
     {
         public int Id { get; set; }
         public string Product { get; set; }
