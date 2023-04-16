@@ -1,3 +1,6 @@
+using ProjectHack.Model.RAMinformationService;
+using ProjectHack.Model.TimeInformation;
+
 namespace ProjectHack
 {
     public class Program
@@ -12,6 +15,10 @@ namespace ProjectHack
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
+            // adding caching
+            builder.Services.AddMemoryCache();
+            //add RAM information service
+            builder.Services.AddSingleton<IMemoryInfoService, MemoryInfoService>();
 
             var app = builder.Build();
 
@@ -21,7 +28,8 @@ namespace ProjectHack
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
+            //Time information
+            app.UseMiddleware<ResponseTimeMiddleware>();
             app.UseHttpsRedirection();
 
             app.UseAuthorization();

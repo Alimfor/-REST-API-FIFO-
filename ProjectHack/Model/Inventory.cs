@@ -9,24 +9,24 @@ namespace ProjectHack.Model
 {
     public static class Inventory
     {
-        public static decimal CalculateProfitFifo(DateTime startDate, DateTime endDate)
+        public static async Task<decimal> CalculateProfitFifoAsync(DateTime startDate, DateTime endDate)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("dbsetting.json")
                 .Build();
             decimal profit = 0;
-            var stock = new Dictionary<string, Queue<(int quantity, decimal cost)>>();
+            var stock = new Dictionary<long, Queue<(int quantity, decimal cost)>>();
 
             using (var connection = new SqlConnection(config.GetConnectionString("DefaultConnection")))
             {
-                connection.Open();
+                await connection.OpenAsync();
 
                 // get data supply
                 string supplyQuery = "SELECT * FROM supply WHERE supply_time >= @startDate AND supply_time <= @endDate";
-                var supplyData = connection.Query(supplyQuery, new { startDate, endDate }).ToList();
+                var supplyData = await connection.QueryAsync(supplyQuery, new { startDate, endDate });
                 foreach (var row in supplyData)
                 {
-                    string barcode = row.barcode;
+                    long barcode = row.barcode;
                     int quantity = row.quantity;
                     decimal cost = row.price;
 
@@ -45,10 +45,10 @@ namespace ProjectHack.Model
 
                 // get data sale
                 string saleQuery = "SELECT * FROM sale WHERE sale_time >= @startDate AND sale_time <= @endDate ORDER BY sale_time ASC";
-                var saleData = connection.Query(saleQuery, new { startDate, endDate }).ToList();
+                var saleData = await connection.QueryAsync(saleQuery, new { startDate, endDate });
                 foreach (var row in saleData)
                 {
-                    string barcode = row.barcode;
+                    long barcode = row.barcode;
                     int quantity = row.quantity;
                     decimal price = row.price;
 
@@ -76,43 +76,26 @@ namespace ProjectHack.Model
             }
             return profit;
         }
-        public static IEnumerable<T> GetAllDataTable<T>(string tableName)
+        public static async Task<IEnumerable<T>> GetAllDataTableAsync<T>(string tableName)
         {
             var config = new ConfigurationBuilder()
             .AddJsonFile("dbsetting.json")
             .Build();
-
-            //var result = new List<string>();
 
             using var connection = new SqlConnection(config.GetConnectionString("DefaultConnection"));
 
             string query = $"SELECT * FROM {tableName}";
-            return SqlMapper.Query<T>(connection,query);
-
-            //var command = new SqlCommand(query, connection);
-            //connection.Open();
-
-            //using SqlDataReader reader = command.ExecuteReader();
-            //while (reader.Read())
-            //{
-            //    int id = reader.GetInt32(0);
-            //    long barcode = reader.GetInt64(1);
-            //    int quantity = reader.GetInt32(2);
-            //    int price = reader.GetInt32(3);
-            //    DateTime supplyTime = reader.GetDateTime(4);
-
-            //    string data = $"{id}, {barcode}, {quantity}, {price}, {supplyTime}";
-            //    result.Add(data);
-            //}
-            //return result;
+            return await connection.QueryAsync<T>(query);
         }
-        public static void InsertTableData<T>(T data,string tableName) where T : class,new()
+        public static async Task InsertTableData<T>(T data,string tableName) where T : class,new()
         {
             var config = new ConfigurationBuilder()
             .AddJsonFile("dbsetting.json")
             .Build();
             using var connection = new SqlConnection(config.GetConnectionString("DefaultConnection"));
-            connection.Execute(
+            await connection.OpenAsync();
+
+            await connection.ExecuteAsync(
                 $"INSERT INTO {tableName} (barcode, quantity, price, {tableName}_time) " +
                 $"VALUES (@Barcode, @Quantity, @price, @Time)",
                 new
@@ -122,38 +105,30 @@ namespace ProjectHack.Model
                     price = typeof(T).GetProperty("Price").GetValue(data),
                     Time = typeof(T).GetProperty("Time").GetValue(data)
                 });
-            //connection.Open();
-
-            //string query = $"INSERT INTO {tableName} (barcode, quantity, price, sale_time) " +
-            //               "VALUES (@barcode, @quantity, @price, @sale_time)";
-
-            //using var command = new SqlCommand(query, connection);
-            //command.Parameters.AddWithValue("@barcode", typeof(T).GetProperty("BarCode").GetValue(data));
-            //command.Parameters.AddWithValue("@quantity", typeof(T).GetProperty("Quantity").GetValue(data));
-            //command.Parameters.AddWithValue("@price", typeof(T).GetProperty("Price").GetValue(data));
-            //command.Parameters.AddWithValue("@sale_time", typeof(T).GetProperty("Time").GetValue(data));
-
-            //command.ExecuteNonQuery();
         }
-        public static void DeleteTableData(int id,string tableName)
+        public static async Task DeleteTableData(int id,string tableName)
         {
             var config = new ConfigurationBuilder()
             .AddJsonFile("dbsetting.json")
             .Build();
             using var connection = new SqlConnection(config.GetConnectionString("DefaultConnection"));
-            connection.Execute(
+            await connection.OpenAsync();
+
+            await connection.ExecuteAsync(
                 $"DELETE FROM {tableName} " +
                 $"WHERE id=@Id",
                 new { Id = id }
                 );
         }
-        public static void UpdateTableData<T>(T data, int id,string tableName) where T : class,new()
+        public static async Task UpdateTableData<T>(T data, int id,string tableName) where T : class,new()
         {
             var config = new ConfigurationBuilder()
             .AddJsonFile("dbsetting.json")
             .Build();
             using var connection = new SqlConnection(config.GetConnectionString("DefaultConnection"));
-            connection.Execute(
+            await connection.OpenAsync();
+
+            await connection.ExecuteAsync(
                     $"UPDATE {tableName} " +
                     $"SET quantity = @Quantity, " +
                     $"price = @Price, {tableName}_time = @Time " +

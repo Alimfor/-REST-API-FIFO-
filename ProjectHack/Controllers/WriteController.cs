@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using ProjectHack.Model;
+using ProjectHack.Model.RAMinformationService;
 using System.Data.SqlClient;
 using System.Text.Json.Serialization;
 
@@ -9,74 +11,114 @@ namespace ProjectHack.Controllers
     [Route("[controller]")]
     public class WriteController : ControllerBase
     {
-        [HttpGet]
-        [Route("Selectprofit")]
-        public ActionResult<decimal> CalculateProfitFifo(DateTime startDate, DateTime endDate)
-        {
-            decimal profit = Inventory.CalculateProfitFifo(startDate,endDate);
-            return Ok(profit);
-        }
+        private readonly IMemoryCache memoryCache;
+        public WriteController(IMemoryCache cache) => memoryCache = cache;
+
 
         [HttpGet]
-        [Route("GetAllDataSales")]
-        public ActionResult GetAllDataSales()
+        [Route("Selectprofit")]
+        public async Task<ActionResult<decimal>> CalculateProfitFifo(DateTime startDate, DateTime endDate)
         {
-            return Ok(Inventory.GetAllDataTable<Sale>("sale"));
+            string cachekey = $"profit-{startDate}-{endDate}";
+
+            if(memoryCache.TryGetValue(cachekey,out decimal profit))
+            {
+                return Ok(profit);
+            }
+
+            profit = await Inventory.CalculateProfitFifoAsync(startDate,endDate);
+            memoryCache.Set(cachekey, profit,TimeSpan.FromMinutes(30));
+            return Ok(profit);
+        }
+        [HttpGet]
+        [Route("GetAllDataSale")]
+        public async Task<ActionResult> GetAllDataTableAsync()
+        {
+            var data = await Inventory.GetAllDataTableAsync<Sale>("sale");
+            return Ok(data);
         }
 
         [HttpGet]
         [Route("GetAllDataSupply")]
-        public ActionResult GetAllDataSupply()
+        public async Task<ActionResult> GetAllDataSupplyAsync()
         {
-            return Ok(Inventory.GetAllDataTable<Supply>("supply"));
+            var data = await Inventory.GetAllDataTableAsync<Supply>("supply");
+            return Ok(data);
         }
 
         [HttpPost]
         [Route("AddSaleData")]
-        public IActionResult AddSaleData(Sale data)
+        public async Task<IActionResult> AddSaleDataAsync(Sale data)
         {
-            Inventory.InsertTableData(data,"sale");
+            await Inventory.InsertTableData(data,"sale");
             return Ok();
         }
 
         [HttpPost]
         [Route("AddSupplyData")]
-        public IActionResult AddSupplyData(Supply data)
+        public async Task<IActionResult> AddSupplyDataAsync(Supply data)
         {
-            Inventory.InsertTableData(data,"supply");
+            await Inventory.InsertTableData(data,"supply");
             return Ok();
         }
 
         [HttpDelete]
         [Route("DeleteSaleData")]
-        public OkResult DeleteSaleData(int id)
+        public async Task<OkResult> DeleteSaleDataAsync(int id)
         {
-            Inventory.DeleteTableData(id,"sale");
+            await Inventory.DeleteTableData(id,"sale");
             return Ok();
         }
         
         [HttpDelete]
         [Route("DeleteSupplyData")]
-        public OkResult DeleteSupplyData(int id)
+        public async Task<OkResult> DeleteSupplyDataAsync(int id)
         {
-            Inventory.DeleteTableData(id,"supply");
+            await Inventory.DeleteTableData(id,"supply");
             return Ok();
         }
 
         [HttpPut]
         [Route("UpdateSaleData")]
-        public OkResult UpdateSaleData(SaleForUpdate data,int id)
+        public async Task<OkResult> UpdateSaleDataAsync(SaleForUpdate data,int id)
         {
-            Inventory.UpdateTableData(data,id, "sale");
+            await Inventory.UpdateTableData(data,id, "sale");
             return Ok();
         }
         
         [HttpPut]
         [Route("UpdateSypplyData")]
-        public OkResult UpdateSupplyData(SuppliForUpdate data,int id)
+        public async Task<OkResult> UpdateSupplyDataAsync(SuppliForUpdate data,int id)
         {
-            Inventory.UpdateTableData(data,id, "supply");
+            await Inventory.UpdateTableData(data,id, "supply");
             return Ok();
+        }
+
+        [HttpGet]
+        [Route("DataBaseMemory")]
+        public async Task<ActionResult> GetDataBaseMemoryAsync()
+        {
+            var connectionString = new ConfigurationBuilder()
+            .AddJsonFile("dbsetting.json")
+            .Build();
+            long memory = 0;
+            using (var connection = new SqlConnection(connectionString.GetConnectionString("DefaultConnection")))
+            {
+                await connection.OpenAsync();
+
+                var command = new SqlCommand("SELECT physical_memory_in_use_kb FROM sys.dm_os_process_memory", connection);
+                memory = (long)await command.ExecuteScalarAsync();
+            }
+            return Ok(memory);
+        }
+
+        [HttpGet]
+        [Route("Memory")]
+        public IActionResult GetMemoryUsage()
+        {
+            var memoryInfoService = HttpContext.RequestServices.GetService<IMemoryInfoService>();
+            long usedMemory = memoryInfoService.GetUsedMemory();
+            return Ok($"Used memory: {usedMemory} bytes");
         }
     }
     
