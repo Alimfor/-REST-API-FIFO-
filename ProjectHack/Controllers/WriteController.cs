@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using ProjectHack.Model;
 using ProjectHack.Model.RAMinformationService;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Data.Entity;
 using System.Data.SqlClient;
 using System.Text.Json.Serialization;
+using static ProjectHack.Controllers.WriteController;
 
 namespace ProjectHack.Controllers
 {
@@ -17,19 +22,20 @@ namespace ProjectHack.Controllers
 
         [HttpGet]
         [Route("Selectprofit")]
-        public async Task<ActionResult<decimal>> CalculateProfitFifo(DateTime startDate, DateTime endDate)
+        public async Task<ActionResult<decimal>> CalculateProfitFifo(long barcode, DateTime startDate, DateTime endDate)
         {
-            string cachekey = $"profit-{startDate}-{endDate}";
+            string cachekey = $"profit-{barcode}-{startDate}-{endDate}";
 
-            if(memoryCache.TryGetValue(cachekey,out decimal profit))
+            if (memoryCache.TryGetValue(cachekey, out decimal profit))
             {
                 return Ok(profit);
             }
 
-            profit = await Inventory.CalculateProfitFifoAsync(startDate,endDate);
-            memoryCache.Set(cachekey, profit,TimeSpan.FromMinutes(30));
+            profit = await Inventory.CalculateProfitFifoAsync(barcode, startDate, endDate);
+            memoryCache.Set(cachekey, profit, TimeSpan.FromMinutes(30));
             return Ok(profit);
         }
+
         [HttpGet]
         [Route("GetAllDataSale")]
         public async Task<ActionResult> GetAllDataTableAsync()

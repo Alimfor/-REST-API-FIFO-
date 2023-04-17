@@ -9,24 +9,23 @@ namespace ProjectHack.Model
 {
     public static class Inventory
     {
-        public static async Task<decimal> CalculateProfitFifoAsync(DateTime startDate, DateTime endDate)
+        public static async Task<decimal> CalculateProfitFifoAsync(long barcode, DateTime startDate, DateTime endDate)
         {
             var config = new ConfigurationBuilder()
                 .AddJsonFile("dbsetting.json")
                 .Build();
             decimal profit = 0;
+            int AllQuantity = 0;
             var stock = new Dictionary<long, Queue<(int quantity, decimal cost)>>();
 
             using (var connection = new SqlConnection(config.GetConnectionString("DefaultConnection")))
             {
                 await connection.OpenAsync();
-
                 // get data supply
-                string supplyQuery = "SELECT * FROM supply WHERE supply_time >= @startDate AND supply_time <= @endDate";
-                var supplyData = await connection.QueryAsync(supplyQuery, new { startDate, endDate });
+                string supplyQuery = "SELECT * FROM supply WHERE barcode = @barcode AND quantity > 0";
+                var supplyData = await connection.QueryAsync(supplyQuery, new { barcode, startDate, endDate });
                 foreach (var row in supplyData)
                 {
-                    long barcode = row.barcode;
                     int quantity = row.quantity;
                     decimal cost = row.price;
 
@@ -45,16 +44,20 @@ namespace ProjectHack.Model
 
                 // get data sale
                 string saleQuery = "SELECT * FROM sale WHERE sale_time >= @startDate AND sale_time <= @endDate ORDER BY sale_time ASC";
-                var saleData = await connection.QueryAsync(saleQuery, new { startDate, endDate });
+                var saleData = await connection.QueryAsync(saleQuery, new { barcode, startDate, endDate });
                 foreach (var row in saleData)
                 {
-                    long barcode = row.barcode;
                     int quantity = row.quantity;
                     decimal price = row.price;
+                    AllQuantity += quantity;
 
                     // We calculate the profit for the goods sold
-                    while (quantity > 0 && stock.ContainsKey(barcode) && stock[barcode].Count > 0)
+                    while (true)
                     {
+                        if(quantity <= 0 || !stock.ContainsKey(barcode) || stock[barcode].Count <= 0)
+                        {
+                            break;
+                        }
                         var stockItem = stock[barcode].Peek();
                         int soldQuantity = Math.Min(quantity, stockItem.quantity);
                         quantity -= soldQuantity;
@@ -71,9 +74,11 @@ namespace ProjectHack.Model
 
                         decimal profitFromSale = (price - cost) * soldQuantity;
                         profit += profitFromSale;
+                        
                     }
                 }
             }
+            await Console.Out.WriteLineAsync(AllQuantity + "");
             return profit;
         }
         public static async Task<IEnumerable<T>> GetAllDataTableAsync<T>(string tableName)
