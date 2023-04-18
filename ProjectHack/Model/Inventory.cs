@@ -43,7 +43,7 @@ namespace ProjectHack.Model
                 }
 
                 // get data sale
-                string saleQuery = "SELECT * FROM sale WHERE sale_time >= @startDate AND sale_time <= @endDate ORDER BY sale_time ASC";
+                string saleQuery = "SELECT * FROM sale WHERE sale_time >= @startDate AND sale_time <= @endDate AND barcode = @barcode ORDER BY sale_time ASC";
                 var saleData = await connection.QueryAsync(saleQuery, new { barcode, startDate, endDate });
                 foreach (var row in saleData)
                 {
